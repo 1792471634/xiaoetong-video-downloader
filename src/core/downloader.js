@@ -226,7 +226,25 @@ function decryptBuffer(secretKey, iv, rawFilepath) {
   const encryptedData = fs.readFileSync(rawFilepath);
   const decipher = crypto.createDecipheriv('aes-128-cbc', secretKey, iv);
   decipher.setAutoPadding(false);
-  return Buffer.concat([decipher.update(encryptedData), decipher.final()]);
+  const decrypted = Buffer.concat([decipher.update(encryptedData), decipher.final()]);
+
+  // Manually strip PKCS7 padding to prevent garbage bytes from corrupting TS packets
+  if (decrypted.length > 0) {
+    const padByte = decrypted[decrypted.length - 1];
+    if (padByte > 0 && padByte <= 16) {
+      let validPadding = true;
+      for (let i = decrypted.length - padByte; i < decrypted.length; i++) {
+        if (decrypted[i] !== padByte) {
+          validPadding = false;
+          break;
+        }
+      }
+      if (validPadding) {
+        return decrypted.slice(0, decrypted.length - padByte);
+      }
+    }
+  }
+  return decrypted;
 }
 
 function detectTsSync(buffer) {
@@ -284,7 +302,15 @@ async function mergeSegments(decodeDir, outputFile, onLog, signal) {
   return new Promise((resolve, reject) => {
     const proc = spawn(
       'ffmpeg',
-      ['-y', '-safe', '0', '-f', 'concat', '-i', 'filelist.txt', '-c', 'copy', outputFile],
+      [
+        '-y', '-safe', '0',
+        '-f', 'concat',
+        '-i', 'filelist.txt',
+        '-c', 'copy',
+        '-avoid_negative_ts', 'make_zero',
+        '-fflags', '+genpts+discardcorrupt',
+        outputFile,
+      ],
       { cwd: decodeDir }
     );
     const onAbort = signal
