@@ -192,7 +192,7 @@ function xorKeys(keyBuffer, userId) {
   return result;
 }
 
-function parseTsUrls(m3u8Content, m3u8Url, tsUrlDemo) {
+function parseTsUrls(m3u8Content, m3u8Url) {
   const lines = m3u8Content
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -200,25 +200,36 @@ function parseTsUrls(m3u8Content, m3u8Url, tsUrlDemo) {
   if (lines.length === 0) {
     throw new Error('No segment lines found in m3u8.');
   }
-  const demoUrl = tsUrlDemo ? new URL(tsUrlDemo) : null;
-  if (!demoUrl) {
-    const missingQuery = lines.some((line) => !line.includes('?'));
-    if (missingQuery) {
-      throw new Error(
-        'tsUrlDemo is required: m3u8 segment lines do not include query parameters.'
-      );
-    }
-  }
+  
+  // Extract the raw query string from the m3u8 URL (preserving original encoding).
+  // IMPORTANT: we must NOT use URLSearchParams.toString() because it re-encodes
+  // characters like commas (,) → %2C, which breaks server-side signature validation.
+  const baseUrlObj = new URL(m3u8Url);
+  const baseRawQuery = baseUrlObj.search; // e.g. "?sign=xxx&t=xxx&whref=*.xiaoe-tech.com,*.xiaoeknow.com"
+  
   return lines.map((line) => {
-    const resolved = new URL(line, demoUrl || m3u8Url);
-    if (!demoUrl) return resolved.toString();
-    const params = new URLSearchParams(demoUrl.search);
-    const lineParams = new URLSearchParams(resolved.search);
-    for (const [key, value] of lineParams.entries()) {
-      params.set(key, value);
+    const resolved = new URL(line, m3u8Url);
+    
+    if (resolved.search) {
+      // The TS line already has its own query params — keep them as-is,
+      // then append any missing params from the m3u8 URL using raw strings.
+      const existingKeys = new Set(new URLSearchParams(resolved.search).keys());
+      const missingParams = [];
+      // Parse base URL params to find what's missing, but use raw extraction
+      for (const [key, value] of baseUrlObj.searchParams.entries()) {
+        if (!existingKeys.has(key)) {
+          missingParams.push(`${encodeURIComponent(key)}=${value}`);
+        }
+      }
+      if (missingParams.length > 0) {
+        // Append the raw params without re-encoding their values
+        return resolved.toString() + '&' + missingParams.join('&');
+      }
+      return resolved.toString();
+    } else {
+      // The TS line has no query params — append the entire raw query from m3u8 URL
+      return resolved.origin + resolved.pathname + baseRawQuery;
     }
-    resolved.search = params.toString();
-    return resolved.toString();
   });
 }
 
@@ -345,25 +356,62 @@ class DownloadJob extends EventEmitter {
     if (!opts.userId) throw new Error('userId is required.');
     if (!opts.m3u8Url) throw new Error('m3u8Url is required.');
 
-    const outputRoot = opts.outputRoot || process.cwd();
-    const folderName = opts.outputFolder || deriveVideoId(opts.m3u8Url);
-    const outputDir = path.join(outputRoot, folderName);
-    const downloadDir = path.join(outputDir, 'download');
-    const decodeDir = path.join(outputDir, 'decode');
+    // ===== Sanitize m3u8Url: fix common copy-paste and escape issues =====
+    // Strip prefixes like "请求网址 " from browser DevTools copy
+    const urlMatch = opts.m3u8Url.match(/https?:\/\/.+/);
+    if (urlMatch) {
+      opts.m3u8Url = urlMatch[0];
+    }
+    opts.m3u8Url = opts.m3u8Url
+      .replace(/\\\//g, '/')        // JSON escaped slashes: \/ → /
+      .replace(/\\u0026/g, '&')     // Unicode escaped ampersand
+      .replace(/\\\\/g, '\\')       // Double backslash
+      .trim();
 
-    ensureDir(outputDir);
-    removeDir(downloadDir);
-    removeDir(decodeDir);
+    // Validate the URL early to give a clear error message
+    try {
+      new URL(opts.m3u8Url);
+    } catch (e) {
+      throw new Error(`m3u8Url is not a valid URL: "${opts.m3u8Url}"`);
+    }
+
+    // ===== Auto-generate fake referer from whref parameter if none is provided =====
+    if (!opts.referer) {
+      try {
+        const u = new URL(opts.m3u8Url);
+        const whref = u.searchParams.get('whref');
+        if (whref) {
+          // Find a valid domain wildcard, e.g. '*.xiaoe-tech.com'
+          const firstAllowed = whref.split(',')[0]; 
+          // Inject 'app.' instead of '*.' to craft a perfectly valid bypass referer
+          opts.referer = `https://${firstAllowed.replace('*.', 'app.')}/`; 
+        }
+      } catch (e) {
+        // Ignore parsing errors, it will just proceed without referer
+      }
+    }
+    // ===============================================================================
+
+    const outputRoot = opts.outputRoot || process.cwd();
+    ensureDir(outputRoot);
+
+    // Use a hidden temp directory for working files (download, decode, m3u8)
+    const tmpId = `_tmp_${Date.now()}`;
+    const tmpDir = path.join(outputRoot, tmpId);
+    const downloadDir = path.join(tmpDir, 'download');
+    const decodeDir = path.join(tmpDir, 'decode');
+
+    ensureDir(tmpDir);
     ensureDir(downloadDir);
     ensureDir(decodeDir);
 
     const headers = buildDefaultHeaders(opts.referer);
     this.emit('stage', 'fetching');
-    const m3u8Content = await getM3u8(opts.m3u8Url, outputDir, headers, this.signal);
+    const m3u8Content = await getM3u8(opts.m3u8Url, tmpDir, headers, this.signal);
 
     const iv = getIV(m3u8Content);
     const keyUrl = getKeyUri(m3u8Content, opts.m3u8Url);
-    const tsUrls = parseTsUrls(m3u8Content, opts.m3u8Url, opts.tsUrlDemo);
+    const tsUrls = parseTsUrls(m3u8Content, opts.m3u8Url);
 
     this.emit('log', `Segments: ${tsUrls.length}`);
 
@@ -433,21 +481,23 @@ class DownloadJob extends EventEmitter {
       this.emit('progress', { current: i + 1, total: tsUrls.length });
     }
 
-    const mp4Name = (opts.outputFileName || 'output') + '.mp4';
+    // Output mp4 directly to outputRoot (no sub-folder)
+    const mp4Name = (opts.outputFileName || opts.outputFolder || 'output') + '.mp4';
+    const outputFile = path.join(outputRoot, mp4Name);
 
     this.emit('stage', 'merging');
-    await mergeSegments(decodeDir, path.join(outputDir, mp4Name), (msg) => {
+    await mergeSegments(decodeDir, outputFile, (msg) => {
       if (msg) this.emit('log', msg);
     }, this.signal);
 
+    // Clean up the entire temp directory (download, decode, data.m3u8)
     if (opts.cleanup !== false) {
       this.emit('stage', 'cleaning');
-      removeDir(downloadDir);
-      removeDir(decodeDir);
+      removeDir(tmpDir);
     }
 
     this.emit('stage', 'done');
-    return { outputDir, outputFile: path.join(outputDir, mp4Name) };
+    return { outputDir: outputRoot, outputFile };
   }
 }
 

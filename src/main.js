@@ -345,6 +345,7 @@ ipcMain.handle('start-batch-download', async (_event, payload) => {
 
       sendToRenderer('batch-item-status', { index: i, status: 'running' });
       sendToRenderer('log', `\n━━━ Batch [${i + 1}/${m3u8Urls.length}] ━━━ ${folderName}`);
+      sendToRenderer('log', `URL: ${url}`);
 
       currentJob = new DownloadJob({
         userId,

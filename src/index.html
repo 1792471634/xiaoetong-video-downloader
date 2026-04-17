@@ -39,8 +39,23 @@
     </header>
 
     <section class="grid">
-      <!-- Auto Parse Card -->
-      <div class="card parse-card">
+      <!-- Mode Switcher -->
+      <div class="mode-switcher" id="modeSwitcher">
+        <button class="mode-btn active" id="modeAutoBtn" type="button">
+          <span class="mode-btn-icon">🚀</span>
+          <span class="mode-btn-label">全自动模式</span>
+          <span class="mode-btn-desc">标准课程 / 专栏</span>
+        </button>
+        <button class="mode-btn" id="modeManualBtn" type="button">
+          <span class="mode-btn-icon">🔧</span>
+          <span class="mode-btn-label">手动抓包模式</span>
+          <span class="mode-btn-desc">定制化小鹅通店铺</span>
+        </button>
+        <div class="mode-indicator" id="modeIndicator"></div>
+      </div>
+
+      <!-- Mode A: Auto Parse Card -->
+      <div class="card parse-card mode-panel" id="panelAuto">
         <h2>🔍 智能解析课程</h2>
         <p class="parse-desc">粘贴小鹅通课程/专栏链接，先登录后自动获取全部 m3u8 地址并填入下方表格。</p>
 
@@ -86,28 +101,54 @@
         <pre id="parseLogOutput" class="parse-log" style="display:none;"></pre>
       </div>
 
+      <!-- Mode B: Manual Guide Card -->
+      <div class="card manual-card mode-panel" id="panelManual" style="display:none;">
+        <h2>🔧 手动抓包下载</h2>
+        <p class="manual-desc">适用于重度定制化的小鹅通店铺（链接常带有 <code>decorate/homepage</code> 等字样），需要手动从浏览器抓包获取下载信息。</p>
+
+        <div class="manual-steps">
+          <div class="manual-step">
+            <span class="manual-step-num">❶</span>
+            <div>
+              <strong>打开视频播放页</strong>
+              <p>在电脑浏览器中打开你要下载的课程视频页面。</p>
+            </div>
+          </div>
+          <div class="manual-step">
+            <span class="manual-step-num">❷</span>
+            <div>
+              <strong>获取 userId</strong>
+              <p>按 <kbd>F12</kbd> 打开开发者工具 → Network 面板 → 搜索 <code>pushData</code> → 在 Payload 中找到 <code>userId</code>。</p>
+            </div>
+          </div>
+          <div class="manual-step">
+            <span class="manual-step-num">❸</span>
+            <div>
+              <strong>获取 m3u8 链接</strong>
+              <p>在 Network 面板搜索 <code>m3u8</code>（可先点击播放按钮触发请求），复制请求的 URL。</p>
+            </div>
+          </div>
+          <div class="manual-step">
+            <span class="manual-step-num">❹</span>
+            <div>
+              <strong>填入下方表格</strong>
+              <p>将 userId 和 m3u8 URL 填入下方，点击 <strong>Start</strong> 即可下载。</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="manual-tip">
+          <span class="manual-tip-icon">💡</span>
+          <span>复制 URL 时可以直接带上 "请求网址" 前缀，程序会自动清理。每个视频需要单独抓取 m3u8 地址。</span>
+        </div>
+      </div>
+
       <!-- Common params -->
       <div class="card">
         <h2>Common Params</h2>
         <label class="field">
           <span>userId</span>
           <input id="userId" placeholder="u_xxx" />
-        </label>
-
-        <label class="field">
-          <div class="field-header">
-            <span>tsUrlDemo</span>
-            <span class="tag">Optional</span>
-          </div>
-          <textarea id="tsUrlDemo" rows="2" placeholder="https://...ts?sign=...&t=...&us=...&whref=..."></textarea>
-          <p class="hint">
-            Only needed when ts lines in the m3u8 do not include query parameters.
-          </p>
-        </label>
-
-        <label class="field">
-          <span>referer</span>
-          <input id="referer" placeholder="https://..." />
         </label>
 
         <label class="field">
@@ -131,7 +172,7 @@
             <thead>
               <tr>
                 <th class="col-index">#</th>
-                <th class="col-name">Name (folder & file)</th>
+                <th class="col-name">Name (file)</th>
                 <th class="col-url">m3u8 URL</th>
                 <th class="col-status">Status</th>
                 <th class="col-action"></th>

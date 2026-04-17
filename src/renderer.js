@@ -1,7 +1,5 @@
 const els = {
   userId: document.getElementById('userId'),
-  tsUrlDemo: document.getElementById('tsUrlDemo'),
-  referer: document.getElementById('referer'),
   outputRoot: document.getElementById('outputRoot'),
   browseBtn: document.getElementById('browseBtn'),
   addRowBtn: document.getElementById('addRowBtn'),
@@ -25,9 +23,47 @@ const els = {
   parseProgressBar: document.getElementById('parseProgressBar'),
   parseStatusText: document.getElementById('parseStatusText'),
   parseLogOutput: document.getElementById('parseLogOutput'),
+  // Mode switcher elements
+  modeAutoBtn: document.getElementById('modeAutoBtn'),
+  modeManualBtn: document.getElementById('modeManualBtn'),
+  modeIndicator: document.getElementById('modeIndicator'),
+  panelAuto: document.getElementById('panelAuto'),
+  panelManual: document.getElementById('panelManual'),
 };
 
 let isBatchMode = false;
+let currentMode = 'auto'; // 'auto' or 'manual'
+
+// ─── Mode Switching ───
+
+function switchMode(mode) {
+  currentMode = mode;
+  if (mode === 'auto') {
+    els.modeAutoBtn.classList.add('active');
+    els.modeManualBtn.classList.remove('active');
+    els.modeIndicator.classList.remove('right');
+    els.panelAuto.style.display = '';
+    els.panelAuto.classList.remove('hidden');
+    els.panelManual.style.display = 'none';
+    els.panelManual.classList.add('hidden');
+  } else {
+    els.modeManualBtn.classList.add('active');
+    els.modeAutoBtn.classList.remove('active');
+    els.modeIndicator.classList.add('right');
+    els.panelManual.style.display = '';
+    els.panelManual.classList.remove('hidden');
+    els.panelAuto.style.display = 'none';
+    els.panelAuto.classList.add('hidden');
+  }
+}
+
+els.modeAutoBtn.addEventListener('click', () => {
+  if (currentMode !== 'auto') switchMode('auto');
+});
+
+els.modeManualBtn.addEventListener('click', () => {
+  if (currentMode !== 'manual') switchMode('manual');
+});
 
 // ─── Table Row Management ───
 
@@ -74,7 +110,10 @@ function getTableData() {
   const items = [];
   rows.forEach((row) => {
     const name = row.querySelector('.row-name').value.trim();
-    const url = row.querySelector('.row-url').value.trim();
+    let url = row.querySelector('.row-url').value.trim();
+    // Strip prefixes like "请求网址 " from browser DevTools copy-paste
+    const urlMatch = url.match(/https?:\/\/.+/);
+    if (urlMatch) url = urlMatch[0].trim();
     if (url) {
       items.push({ name, url });
     }
@@ -143,13 +182,17 @@ function appendLog(message) {
 }
 
 function lockForm(isLocked) {
-  const fields = [els.userId, els.tsUrlDemo, els.referer, els.outputRoot, els.browseBtn, els.addRowBtn];
+  const fields = [els.userId, els.outputRoot, els.browseBtn, els.addRowBtn];
   fields.forEach((f) => { f.disabled = isLocked; });
 
   // Lock all row inputs and remove buttons
   els.batchTableBody.querySelectorAll('input, button').forEach((el) => {
     el.disabled = isLocked;
   });
+
+  // Lock mode switcher during download
+  els.modeAutoBtn.disabled = isLocked;
+  els.modeManualBtn.disabled = isLocked;
 
   els.startBtn.disabled = isLocked;
   els.cancelBtn.disabled = !isLocked;
@@ -259,10 +302,7 @@ els.parseBtn.addEventListener('click', async () => {
         addRow(item.title || '', item.m3u8_url || '');
       });
 
-      // Auto-fill referer from course URL
-      if (!els.referer.value.trim()) {
-        els.referer.value = courseUrl;
-      }
+      // referer auto-fill removed
 
       els.parseStatusText.textContent = `解析完成! 已填入 ${result.results.length} 条视频`;
       els.parseProgressBar.style.width = '100%';
@@ -319,6 +359,24 @@ els.startBtn.addEventListener('click', async () => {
     return;
   }
 
+  // Validate all URLs before starting
+  const invalidRows = [];
+  items.forEach((item, i) => {
+    try {
+      new URL(item.url);
+    } catch (e) {
+      invalidRows.push({ index: i, url: item.url, name: item.name });
+    }
+  });
+  if (invalidRows.length > 0) {
+    invalidRows.forEach((r) => {
+      appendLog(`⚠ Row ${r.index + 1} "${r.name || '(unnamed)'}" has invalid URL: ${r.url}`);
+      setRowStatus(r.index, 'error');
+    });
+    appendLog('Please fix the invalid URLs above before starting.');
+    return;
+  }
+
   setStatus('Starting');
   setProgress(0, 0);
   lockForm(true);
@@ -331,8 +389,8 @@ els.startBtn.addEventListener('click', async () => {
     const payload = {
       userId,
       m3u8Url: items[0].url,
-      tsUrlDemo: els.tsUrlDemo.value.trim(),
-      referer: els.referer.value.trim(),
+      tsUrlDemo: "",
+      referer: "",
       outputRoot: els.outputRoot.value.trim(),
       outputFolder: items[0].name || '',
     };
@@ -354,8 +412,8 @@ els.startBtn.addEventListener('click', async () => {
       userId,
       m3u8Urls: items.map((i) => i.url),
       names: items.map((i) => i.name),
-      tsUrlDemo: els.tsUrlDemo.value.trim(),
-      referer: els.referer.value.trim(),
+      tsUrlDemo: "",
+      referer: "",
       outputRoot: els.outputRoot.value.trim(),
     };
 
