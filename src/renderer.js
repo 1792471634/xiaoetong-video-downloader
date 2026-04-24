@@ -1,14 +1,8 @@
 const els = {
   userId: document.getElementById('userId'),
-  outputRoot: document.getElementById('outputRoot'),
-  browseBtn: document.getElementById('browseBtn'),
   addRowBtn: document.getElementById('addRowBtn'),
   exportListBtn: document.getElementById('exportListBtn'),
   batchTableBody: document.getElementById('batchTableBody'),
-  statusText: document.getElementById('statusText'),
-  progressText: document.getElementById('progressText'),
-  progressBar: document.getElementById('progressBar'),
-  batchProgress: document.getElementById('batchProgress'),
   // Login elements
   loginBtn: document.getElementById('loginBtn'),
   clearLoginBtn: document.getElementById('clearLoginBtn'),
@@ -22,14 +16,14 @@ const els = {
   parseLogOutput: document.getElementById('parseLogOutput'),
   copyParseLogBtn: document.getElementById('copyParseLogBtn'),
   // Mode switcher elements
-  modeAutoBtn: document.getElementById('modeAutoBtn'),
-  modeManualBtn: document.getElementById('modeManualBtn'),
-  modeIndicator: document.getElementById('modeIndicator'),
+  navAuto: document.getElementById('navAuto'),
+  navManual: document.getElementById('navManual'),
   panelAuto: document.getElementById('panelAuto'),
   panelManual: document.getElementById('panelManual'),
+  // Sidebar footer
+  exportPath: document.getElementById('exportPath'),
 };
 
-let isBatchMode = false;
 let currentMode = 'auto'; // 'auto' or 'manual'
 
 // ─── Mode Switching ───
@@ -37,29 +31,25 @@ let currentMode = 'auto'; // 'auto' or 'manual'
 function switchMode(mode) {
   currentMode = mode;
   if (mode === 'auto') {
-    els.modeAutoBtn.classList.add('active');
-    els.modeManualBtn.classList.remove('active');
-    els.modeIndicator.classList.remove('right');
-    els.panelAuto.style.display = '';
-    els.panelAuto.classList.remove('hidden');
-    els.panelManual.style.display = 'none';
-    els.panelManual.classList.add('hidden');
+    els.navAuto.classList.add('active');
+    els.navManual.classList.remove('active');
+    els.panelAuto.classList.add('active');
+    els.panelManual.classList.remove('active');
   } else {
-    els.modeManualBtn.classList.add('active');
-    els.modeAutoBtn.classList.remove('active');
-    els.modeIndicator.classList.add('right');
-    els.panelManual.style.display = '';
-    els.panelManual.classList.remove('hidden');
-    els.panelAuto.style.display = 'none';
-    els.panelAuto.classList.add('hidden');
+    els.navManual.classList.add('active');
+    els.navAuto.classList.remove('active');
+    els.panelManual.classList.add('active');
+    els.panelAuto.classList.remove('active');
   }
 }
 
-els.modeAutoBtn.addEventListener('click', () => {
+els.navAuto.addEventListener('click', (e) => {
+  e.preventDefault();
   if (currentMode !== 'auto') switchMode('auto');
 });
 
-els.modeManualBtn.addEventListener('click', () => {
+els.navManual.addEventListener('click', (e) => {
+  e.preventDefault();
   if (currentMode !== 'manual') switchMode('manual');
 });
 
@@ -74,10 +64,9 @@ function addRow(name = '', url = '') {
 
   tr.innerHTML = `
     <td class="col-index">${getRowCount() + 1}</td>
-    <td class="col-name"><input type="text" class="row-name" placeholder="课程名" value="${escapeHtml(name)}" /></td>
+    <td class="col-name"><input type="text" class="row-name" placeholder="Course Name" value="${escapeHtml(name)}" /></td>
     <td class="col-url"><input type="text" class="row-url" placeholder="https://...m3u8" value="${escapeHtml(url)}" /></td>
-    <td class="col-status"><span class="batch-item-status batch-status-idle">—</span></td>
-    <td class="col-action"><button class="btn ghost small remove-row-btn" type="button">✕</button></td>
+    <td class="col-action"><button class="btn btn-ghost text-sm remove-row-btn" type="button">✕</button></td>
   `;
 
   tr.querySelector('.remove-row-btn').addEventListener('click', () => {
@@ -119,30 +108,6 @@ function getTableData() {
   return items;
 }
 
-function setRowStatus(index, status) {
-  const rows = els.batchTableBody.querySelectorAll('tr');
-  if (index >= rows.length) return;
-  const statusEl = rows[index].querySelector('.batch-item-status');
-  if (!statusEl) return;
-
-  const labels = {
-    idle: '—',
-    waiting: 'Waiting',
-    running: '▶ Running',
-    done: '✓ Done',
-    error: '✗ Error',
-    cancelled: '— Cancelled',
-  };
-
-  statusEl.textContent = labels[status] || status;
-  statusEl.className = `batch-item-status batch-status-${status}`;
-}
-
-function setAllRowsStatus(status) {
-  const rows = els.batchTableBody.querySelectorAll('tr');
-  rows.forEach((_, i) => setRowStatus(i, status));
-}
-
 function updateRowName(index, name) {
   const rows = els.batchTableBody.querySelectorAll('tr');
   if (index >= rows.length) return;
@@ -154,41 +119,23 @@ function updateRowName(index, name) {
 
 // ─── Helpers ───
 
-function setStatus(text) {
-  els.statusText.textContent = text;
-}
-
-function setProgress(current, total) {
-  els.progressText.textContent = `${current} / ${total}`;
-  const pct = total > 0 ? Math.round((current / total) * 100) : 0;
-  els.progressBar.style.width = `${pct}%`;
-}
-
-function setBatchProgress(index, total) {
-  if (total > 1) {
-    els.batchProgress.textContent = `Video ${index + 1}/${total}  ·  `;
-  } else {
-    els.batchProgress.textContent = '';
-  }
-}
-
 function appendLog(message) {
   if (!message) return;
   console.log(message);
 }
 
 function lockForm(isLocked) {
-  const fields = [els.userId, els.outputRoot, els.browseBtn, els.addRowBtn, els.exportListBtn];
-  fields.forEach((f) => { f.disabled = isLocked; });
+  const fields = [els.userId, els.addRowBtn, els.exportListBtn];
+  fields.forEach((f) => { if (f) f.disabled = isLocked; });
 
   // Lock all row inputs and remove buttons
   els.batchTableBody.querySelectorAll('input, button').forEach((el) => {
     el.disabled = isLocked;
   });
 
-  // Lock mode switcher during download
-  els.modeAutoBtn.disabled = isLocked;
-  els.modeManualBtn.disabled = isLocked;
+  // Lock mode switcher during parse
+  els.navAuto.disabled = isLocked;
+  els.navManual.disabled = isLocked;
 }
 
 // ─── Login Logic ───
@@ -196,14 +143,14 @@ function lockForm(isLocked) {
 function setLoginStatus(status) {
   const statusEl = els.loginStatus;
   if (!statusEl) return;
-  statusEl.className = `login-status login-status-${status}`;
-  const textEl = statusEl.querySelector('.login-status-text');
   const labels = {
-    none: '未登录',
-    pending: '登录中...',
-    ok: '已登录 ✓',
+    none: { text: '未登录', class: 'badge badge-gray' },
+    pending: { text: '登录中...', class: 'badge badge-orange' },
+    ok: { text: '已登录 ✓', class: 'badge badge-green' },
   };
-  if (textEl) textEl.textContent = labels[status] || status;
+  const config = labels[status] || labels.none;
+  statusEl.className = config.class;
+  statusEl.textContent = config.text;
 }
 
 els.loginBtn.addEventListener('click', async () => {
@@ -333,11 +280,6 @@ els.parseBtn.addEventListener('click', async () => {
 // ─── Init ───
 
 async function init() {
-  const defaultRoot = await window.api.getDefaultOutputRoot();
-  if (defaultRoot) {
-    els.outputRoot.value = defaultRoot;
-  }
-
   try {
     const loginState = await window.api.getXiaoeLoginStatus();
     const isLoggedIn = loginState && loginState.status === 'ok';
@@ -359,13 +301,6 @@ async function init() {
 // ─── Events ───
 
 els.addRowBtn.addEventListener('click', () => addRow());
-
-els.browseBtn.addEventListener('click', async () => {
-  const root = await window.api.selectOutputRoot();
-  if (root) {
-    els.outputRoot.value = root;
-  }
-});
 
 els.copyParseLogBtn.addEventListener('click', async () => {
   const text = buildParseLogCodeBlock();
@@ -398,6 +333,10 @@ els.exportListBtn.addEventListener('click', async () => {
     const result = await window.api.exportDownloadList({ content });
     if (result && result.ok) {
       appendParseLog(`✅ 下载列表已导出: ${result.filePath}`);
+      if (els.exportPath) {
+        els.exportPath.value = result.filePath;
+        els.exportPath.title = result.filePath;
+      }
     } else if (!result || !result.cancelled) {
       appendParseLog('⚠ 导出下载列表失败。');
     }
@@ -409,63 +348,6 @@ els.exportListBtn.addEventListener('click', async () => {
 // ─── IPC Listeners ───
 
 window.api.onLog((msg) => appendLog(msg));
-
-window.api.onStage((stage) => {
-  const map = {
-    fetching: 'Fetching m3u8',
-    downloading: 'Downloading segments',
-    merging: 'Merging',
-    cleaning: 'Cleaning',
-    done: 'Done',
-  };
-  setStatus(map[stage] || stage);
-});
-
-window.api.onProgress((progress) => {
-  setProgress(progress.current, progress.total);
-  if (isBatchMode && progress.batchIndex !== undefined) {
-    setBatchProgress(progress.batchIndex, progress.batchTotal);
-  }
-});
-
-window.api.onDone((data) => {
-  appendLog(`Done: ${data.outputFile}`);
-  setStatus('Done');
-  setRowStatus(0, 'done');
-  els.batchProgress.textContent = '';
-  lockForm(false);
-});
-
-window.api.onError((err) => {
-  appendLog(`Error: ${err}`);
-  setStatus('Error');
-  els.batchProgress.textContent = '';
-  lockForm(false);
-});
-
-window.api.onCancelled(() => {
-  appendLog('Cancelled by user.');
-  setStatus('Cancelled');
-  els.batchProgress.textContent = '';
-  lockForm(false);
-});
-
-window.api.onBatchItemStatus((data) => {
-  setRowStatus(data.index, data.status);
-});
-
-window.api.onBatchFolderNames((folderNames) => {
-  folderNames.forEach((name, index) => {
-    updateRowName(index, name);
-  });
-});
-
-window.api.onBatchDone((data) => {
-  appendLog(`\nAll ${data.total} videos completed!`);
-  setStatus('All Done');
-  els.batchProgress.textContent = '';
-  lockForm(false);
-});
 
 // ─── Login IPC Listener ───
 

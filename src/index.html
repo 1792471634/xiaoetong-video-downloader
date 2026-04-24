@@ -5,169 +5,168 @@
   <meta charset="UTF-8" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>小鹅通Downloader</title>
+  <title>小鹅通 M3U8 解析器</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 
 <body>
-  <div class="backdrop">
-    <div class="orb orb-a"></div>
-    <div class="orb orb-b"></div>
-    <div class="grid-lines"></div>
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-placeholder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M10 8l6 4-6 4V8z"></path>
+          <path d="M12 2a10 10 0 0 1 10 10"></path>
+        </svg>
+      </div>
+      <div class="brand">
+        <h3>小鹅通解析器</h3>
+        <p>M3U8 提取工具</p>
+      </div>
+    </div>
+    <nav class="nav-menu">
+      <a href="#" class="nav-item active" id="navAuto">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+        智能解析
+      </a>
+      <a href="#" class="nav-item" id="navManual">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+        手动抓包
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="field compact-field">
+        <label>用户 ID (User ID)</label>
+        <input id="userId" placeholder="自动获取或抓包填入" readonly />
+      </div>
+      <div class="field compact-field mt-2">
+        <label>导出地址</label>
+        <input id="exportPath" placeholder="未导出" readonly />
+      </div>
+    </div>
   </div>
 
-  <main class="app">
-    <section class="grid">
-      <!-- Mode Switcher -->
-      <div class="mode-switcher" id="modeSwitcher">
-        <button class="mode-btn active" id="modeAutoBtn" type="button">
-          <span class="mode-btn-icon">🚀</span>
-          <span class="mode-btn-label">全自动模式</span>
-          <span class="mode-btn-desc">标准课程 / 专栏</span>
-        </button>
-        <button class="mode-btn" id="modeManualBtn" type="button">
-          <span class="mode-btn-icon">🔧</span>
-          <span class="mode-btn-label">手动抓包模式</span>
-          <span class="mode-btn-desc">定制化小鹅通店铺</span>
-        </button>
-        <div class="mode-indicator" id="modeIndicator"></div>
-      </div>
+  <main class="main-content">
+    <header class="topbar">
+      <h2>M3U8 解析任务</h2>
+    </header>
 
+    <div class="content-scroll">
       <!-- Mode A: Auto Parse Card -->
-      <div class="card parse-card mode-panel" id="panelAuto">
-        <h2>🔍 智能解析课程</h2>
-        <p class="parse-desc">粘贴小鹅通课程/专栏链接，先登录后自动获取全部 m3u8 地址并填入下方表格。</p>
-
-        <div class="parse-card-layout">
-          <div class="parse-controls">
-            <!-- Step 1: 登录 -->
-            <div class="parse-step">
-              <div class="parse-step-header">
-                <span class="parse-step-badge">1</span>
-                <span class="parse-step-title">登录小鹅通</span>
-                <span id="loginStatus" class="login-status login-status-none">
-                  <span class="login-dot"></span>
-                  <span class="login-status-text">未登录</span>
-                </span>
-                <button id="clearLoginBtn" class="btn ghost small clear-login-btn" type="button">清除登录</button>
-              </div>
-              <p class="parse-step-desc">先粘贴课程链接，然后点击登录按钮，在弹出的窗口中完成登录。</p>
-              <div class="row">
-                <input id="courseUrlInput" placeholder="https://xxx.h5.xet.citv.cn/p/course/column/..." />
-                <button id="loginBtn" class="btn login-btn" type="button">
-                  <span class="login-btn-icon">🔐</span> 登录
-                </button>
-              </div>
-            </div>
-
-            <!-- Step 2: 解析 -->
-            <div class="parse-step">
-              <div class="parse-step-header">
-                <span class="parse-step-badge">2</span>
-                <span class="parse-step-title">解析课程</span>
-              </div>
-              <p class="parse-step-desc">登录成功后，点击下方按钮自动解析所有视频地址。</p>
-              <div class="row">
-                <button id="parseBtn" class="btn accent" type="button">🚀 开始解析</button>
-              </div>
-            </div>
+      <div class="panel active" id="panelAuto">
+        <div class="card shadow-sm">
+          <div class="card-header">
+            <h3>智能解析课程</h3>
+            <p>粘贴小鹅通课程/专栏链接，先登录后自动获取全部 m3u8 地址。</p>
           </div>
-
-          <div class="parse-log-panel">
-            <div id="parseStatus" class="parse-status" style="display:none;">
-              <div class="parse-progress-track">
-                <div id="parseProgressBar" class="parse-progress-bar" style="width:0%"></div>
+          
+          <div class="two-col">
+            <div class="col-left">
+              <div class="step-box">
+                <div class="step-header">
+                  <div class="step-num">1</div>
+                  <h4>账号登录</h4>
+                  <span id="loginStatus" class="badge badge-gray ml-auto">未登录</span>
+                </div>
+                <div class="step-body">
+                  <div class="input-group">
+                    <input id="courseUrlInput" placeholder="https://xxx.h5.xet.citv.cn/p/..." />
+                    <button id="loginBtn" class="btn btn-secondary">登录</button>
+                  </div>
+                  <button id="clearLoginBtn" class="btn btn-ghost text-sm mt-2">清除登录状态</button>
+                </div>
               </div>
-              <div id="parseStatusText" class="parse-status-text">等待中...</div>
+
+              <div class="step-box">
+                <div class="step-header">
+                  <div class="step-num">2</div>
+                  <h4>解析地址</h4>
+                </div>
+                <div class="step-body">
+                  <button id="parseBtn" class="btn btn-primary w-full">开始解析</button>
+                </div>
+              </div>
             </div>
 
-            <div class="parse-log-header">
-              <span>解析日志</span>
-              <button id="copyParseLogBtn" class="btn ghost small" type="button">复制代码块</button>
+            <div class="col-right">
+              <div class="log-container">
+                <div class="log-header">
+                  <span>控制台日志</span>
+                  <button id="copyParseLogBtn" class="btn btn-ghost text-sm">复制</button>
+                </div>
+                
+                <div id="parseStatus" class="progress-container" style="display:none;">
+                  <div class="progress-bar-bg">
+                    <div id="parseProgressBar" class="progress-bar-fill" style="width:0%"></div>
+                  </div>
+                  <div id="parseStatusText" class="progress-text">等待中...</div>
+                </div>
+
+                <pre id="parseLogOutput" class="terminal-log"></pre>
+              </div>
             </div>
-            <pre id="parseLogOutput" class="parse-log" style="display:none;"></pre>
           </div>
         </div>
       </div>
 
       <!-- Mode B: Manual Guide Card -->
-      <div class="card manual-card mode-panel" id="panelManual" style="display:none;">
-        <h2>🔧 手动抓包下载</h2>
-        <p class="manual-desc">适用于重度定制化的小鹅通店铺（链接常带有 <code>decorate/homepage</code> 等字样），需要手动从浏览器抓包获取下载信息。</p>
-
-        <div class="manual-steps">
-          <div class="manual-step">
-            <span class="manual-step-num">❶</span>
-            <div>
-              <strong>打开视频播放页</strong>
-              <p>在电脑浏览器中打开你要下载的课程视频页面。</p>
-            </div>
+      <div class="panel" id="panelManual" style="display:none;">
+        <div class="card shadow-sm">
+          <div class="card-header">
+            <h3>手动抓包指南</h3>
+            <p>适用于重度定制化的小鹅通店铺（链接常带有 decorate/homepage 等字样）。</p>
           </div>
-          <div class="manual-step">
-            <span class="manual-step-num">❷</span>
-            <div>
-              <strong>获取 userId</strong>
-              <p>按 <kbd>F12</kbd> 打开开发者工具 → Network 面板 → 搜索 <code>pushData</code> → 在 Payload 中找到 <code>userId</code>。</p>
+          <div class="guide-steps">
+            <div class="guide-item">
+              <div class="guide-icon">1</div>
+              <div class="guide-text">
+                <strong>打开视频播放页</strong>
+                <span>在电脑浏览器中打开你要下载的课程视频页面。</span>
+              </div>
             </div>
-          </div>
-          <div class="manual-step">
-            <span class="manual-step-num">❸</span>
-            <div>
-              <strong>获取 m3u8 链接</strong>
-              <p>在 Network 面板搜索 <code>m3u8</code>（可先点击播放按钮触发请求），复制请求的 URL。</p>
+            <div class="guide-item">
+              <div class="guide-icon">2</div>
+              <div class="guide-text">
+                <strong>获取 userId</strong>
+                <span>按 F12 打开开发者工具 → Network 面板 → 搜索 <code>pushData</code> → 在 Payload 中找到 <code>userId</code>。</span>
+              </div>
             </div>
-          </div>
-          <div class="manual-step">
-            <span class="manual-step-num">❹</span>
-            <div>
-              <strong>填入并导出列表</strong>
-              <p>将 userId 和 m3u8 URL 填入下方表格，点击 <strong>导出</strong> 保存当前下载清单。</p>
+            <div class="guide-item">
+              <div class="guide-icon">3</div>
+              <div class="guide-text">
+                <strong>获取 m3u8 链接</strong>
+                <span>在 Network 面板搜索 <code>m3u8</code>（可先点击播放按钮触发请求），复制请求的 URL。</span>
+              </div>
+            </div>
+            <div class="guide-item">
+              <div class="guide-icon">4</div>
+              <div class="guide-text">
+                <strong>填入并导出列表</strong>
+                <span>将获取到的 m3u8 URL 填入下方表格，点击“导出”保存当前下载清单。</span>
+              </div>
             </div>
           </div>
         </div>
-
-        <div class="manual-tip">
-          <span class="manual-tip-icon">💡</span>
-          <span>复制 URL 时可以直接带上 "请求网址" 前缀，程序会自动清理。每个视频需要单独抓取 m3u8 地址。</span>
-        </div>
-      </div>
-
-      <!-- Common params -->
-      <div class="card common-params-card">
-        <h2>Common Params</h2>
-        <label class="field">
-          <span>userId</span>
-          <input id="userId" placeholder="u_xxx" />
-        </label>
-
-        <label class="field">
-          <span>Output root</span>
-          <div class="row">
-            <input id="outputRoot" placeholder="Select a folder" />
-            <button id="browseBtn" class="btn ghost" type="button">Browse</button>
-          </div>
-        </label>
       </div>
 
       <!-- Batch Table -->
-      <div class="card batch-card">
-        <div class="batch-table-header">
-          <h2>Download List</h2>
-          <div class="batch-table-actions">
-            <button id="exportListBtn" class="btn primary small" type="button">导出</button>
-            <button id="addRowBtn" class="btn ghost small" type="button">+ Add Row</button>
+      <div class="card mt-6">
+        <div class="card-header flex-row items-center">
+          <h3>已解析的 M3U8 列表</h3>
+          <div class="actions">
+            <button id="addRowBtn" class="btn btn-secondary">添加一行</button>
+            <button id="exportListBtn" class="btn btn-primary">导出 M3U8 列表</button>
           </div>
         </div>
-
-        <div class="batch-table-wrap">
-          <table class="batch-table" id="batchTable">
+        
+        <div class="table-container">
+          <table class="data-table" id="batchTable">
             <thead>
               <tr>
-                <th class="col-index">#</th>
-                <th class="col-name">Name (file)</th>
-                <th class="col-url">m3u8 URL</th>
-                <th class="col-status">Status</th>
-                <th class="col-action"></th>
+                <th width="40">#</th>
+                <th width="30%">视频名称</th>
+                <th>M3U8 地址</th>
+                <th width="50"></th>
               </tr>
             </thead>
             <tbody id="batchTableBody">
@@ -175,9 +174,8 @@
             </tbody>
           </table>
         </div>
-
       </div>
-    </section>
+    </div>
   </main>
 
   <script src="renderer.js"></script>

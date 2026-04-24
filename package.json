@@ -25,7 +25,7 @@
   },
   "build": {
     "appId": "com.clearner1.xiaoedownloader",
-    "productName": "小鹅通视频下载器",
+    "productName": "小鹅通 M3U8 解析器",
     "directories": {
       "output": "dist"
     },
@@ -33,13 +33,15 @@
       "category": "public.app-category.utilities",
       "target": [
         "dmg"
-      ]
+      ],
+      "icon": "assets/icon.png"
     },
     "win": {
       "target": [
         "nsis",
         "portable"
-      ]
+      ],
+      "icon": "assets/icon.png"
     }
   },
   "devDependencies": {
